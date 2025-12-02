@@ -12,7 +12,7 @@ import (
 	"github.com/go-lynx/lynx/plugins"
 )
 
-// Type aliases for convenience
+// EntryOption Type aliases for convenience
 type EntryOption = api.EntryOption
 type SentinelEntry = interface{}
 
@@ -131,8 +131,6 @@ func (s *PlugSentinel) IsHealthy() bool {
 	defer s.mu.RUnlock()
 	return s.isInitialized && s.sentinelInitialized
 }
-
-
 
 // AddFlowRule is a convenience function for adding a flow rule
 func AddFlowRule(resource string, qpsLimit float64, controlBehavior string) error {
@@ -333,7 +331,7 @@ func Shutdown() error {
 
 	// Stop the plugin
 	close(plugin.stopCh)
-	
+
 	// Wait for all goroutines to finish
 	var wg sync.WaitGroup
 	wg.Wait()

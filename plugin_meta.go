@@ -8,23 +8,23 @@ import (
 const (
 	// Plugin unique name
 	pluginName = "sentinel.flow_control"
-	// Alias for external access
+	// PluginName Alias for external access
 	PluginName = pluginName
 	// Plugin version number
 	pluginVersion = "v1.0.0"
-	// Alias for external access
+	// PluginVersion Alias for external access
 	PluginVersion = pluginVersion
 	// Plugin description
 	pluginDescription = "Sentinel flow control and circuit breaker plugin for lynx framework"
-	// Alias for external access
+	// PluginDescription Alias for external access
 	PluginDescription = pluginDescription
 	// Configuration prefix, used to read plugin-related configuration from config
 	confPrefix = "lynx.sentinel"
-	// Alias for compatibility
+	// ConfPrefix Alias for compatibility
 	ConfPrefix = "lynx.sentinel"
 	// Plugin weight - higher values load first, Sentinel should load early for protection
 	pluginWeight = 200
-	// Alias for external access
+	// PluginWeight Alias for external access
 	PluginWeight = pluginWeight
 )
 
