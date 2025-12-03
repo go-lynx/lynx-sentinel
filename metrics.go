@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-lynx/lynx/app/log"
+	"github.com/go-lynx/lynx/log"
 )
 
 // NewMetricsCollector creates a new metrics collector
@@ -23,7 +23,7 @@ func NewMetricsCollector(interval time.Duration) *MetricsCollector {
 // Start starts the metrics collection
 func (mc *MetricsCollector) Start(wg *sync.WaitGroup, stopCh chan struct{}) {
 	defer wg.Done()
-	
+
 	if !mc.enabled {
 		return
 	}
@@ -52,7 +52,7 @@ func (mc *MetricsCollector) collectMetrics() {
 	// Log current metrics
 	for resource := range mc.requestCounter {
 		stats := mc.calculateResourceStats(resource)
-		log.Debugf("Resource %s stats: PassQPS=%.2f, BlockQPS=%.2f, AvgRT=%.2fms", 
+		log.Debugf("Resource %s stats: PassQPS=%.2f, BlockQPS=%.2f, AvgRT=%.2fms",
 			resource, stats.PassQPS, stats.BlockQPS, stats.AvgRT)
 	}
 }
@@ -194,7 +194,7 @@ func (mc *MetricsCollector) GetMetricsSummary() map[string]interface{} {
 	defer mc.mu.RUnlock()
 
 	summary := make(map[string]interface{})
-	
+
 	var totalRequests, totalPassed, totalBlocked int64
 	resourceCount := 0
 

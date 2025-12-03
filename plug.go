@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/alibaba/sentinel-golang/api"
-	"github.com/go-lynx/lynx/app"
-	"github.com/go-lynx/lynx/app/factory"
-	"github.com/go-lynx/lynx/app/log"
+	"github.com/go-lynx/lynx"
+	"github.com/go-lynx/lynx/log"
+	"github.com/go-lynx/lynx/pkg/factory"
 	"github.com/go-lynx/lynx/plugins"
 )
 
@@ -26,8 +26,8 @@ func init() {
 // GetSentinel returns the global Sentinel plugin instance
 func GetSentinel() (*PlugSentinel, error) {
 	// Try to get from application plugin manager first
-	if app.Lynx() != nil && app.Lynx().GetPluginManager() != nil {
-		plugin := app.Lynx().GetPluginManager().GetPlugin(PluginName)
+	if lynx.Lynx() != nil && lynx.Lynx().GetPluginManager() != nil {
+		plugin := lynx.Lynx().GetPluginManager().GetPlugin(PluginName)
 		if plugin != nil {
 			if sentinelPlugin, ok := plugin.(*PlugSentinel); ok {
 				return sentinelPlugin, nil

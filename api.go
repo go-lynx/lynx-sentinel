@@ -7,7 +7,7 @@ import (
 
 	"github.com/alibaba/sentinel-golang/api"
 	"github.com/alibaba/sentinel-golang/core/base"
-	"github.com/go-lynx/lynx/app/log"
+	"github.com/go-lynx/lynx/log"
 )
 
 // Entry performs flow control and circuit breaker check for a resource
@@ -20,12 +20,12 @@ func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (interfac
 	if err != nil {
 		// Log blocked request
 		log.Warnf("Request blocked by Sentinel for resource %s: %v", resource, err)
-		
+
 		// Update metrics
 		if s.metricsCollector != nil {
 			s.metricsCollector.RecordBlocked(resource)
 		}
-		
+
 		return nil, err
 	}
 
@@ -53,7 +53,7 @@ func (s *PlugSentinel) Execute(resource string, fn func() error, opts ...api.Ent
 	if err != nil {
 		return err
 	}
-	
+
 	// Type assert to get the actual entry
 	sentinelEntry, ok := entry.(*base.SentinelEntry)
 	if !ok {
@@ -75,7 +75,7 @@ func (s *PlugSentinel) Execute(resource string, fn func() error, opts ...api.Ent
 		if s.metricsCollector != nil {
 			s.metricsCollector.RecordError(resource)
 		}
-		
+
 		// Report error to Sentinel for circuit breaker
 		api.TraceError(sentinelEntry, err)
 	}
@@ -89,7 +89,7 @@ func (s *PlugSentinel) ExecuteWithContext(ctx context.Context, resource string, 
 	if err != nil {
 		return err
 	}
-	
+
 	// Type assert to get the actual entry
 	sentinelEntry, ok := entry.(*base.SentinelEntry)
 	if !ok {
@@ -111,7 +111,7 @@ func (s *PlugSentinel) ExecuteWithContext(ctx context.Context, resource string, 
 		if s.metricsCollector != nil {
 			s.metricsCollector.RecordError(resource)
 		}
-		
+
 		// Report error to Sentinel for circuit breaker
 		api.TraceError(sentinelEntry, err)
 	}
@@ -269,7 +269,7 @@ func CheckResourceAvailable(resource string) bool {
 	if err != nil {
 		return true // Allow if plugin not available
 	}
-	
+
 	result := plugin.CheckFlow(resource)
 	return result.Allowed
 }
