@@ -6,7 +6,7 @@ toolchain go1.25.3
 
 require (
 	github.com/alibaba/sentinel-golang v1.0.4
-	github.com/go-lynx/lynx v1.5.0
+	github.com/go-lynx/lynx v1.5.2
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/protobuf v1.36.10
 )
