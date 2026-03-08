@@ -296,7 +296,7 @@ func TestPlugSentinel_CreateMiddleware(t *testing.T) {
 // TestPluginMetadata tests plugin metadata constants
 func TestPluginMetadata(t *testing.T) {
 	assert.Equal(t, "sentinel.flow_control", PluginName)
-	assert.Equal(t, "v1.5.4", PluginVersion)
+	assert.Equal(t, "v1.5.5", PluginVersion)
 	assert.Equal(t, "Sentinel flow control and circuit breaker plugin for lynx framework", PluginDescription)
 	assert.Equal(t, int(200), PluginWeight)
 }

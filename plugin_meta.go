@@ -11,7 +11,7 @@ const (
 	// PluginName Alias for external access
 	PluginName = pluginName
 	// Plugin version number
-	pluginVersion = "v1.5.4"
+	pluginVersion = "v1.5.5"
 	// PluginVersion Alias for external access
 	PluginVersion = pluginVersion
 	// Plugin description
