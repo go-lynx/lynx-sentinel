@@ -254,7 +254,7 @@ func (s *PlugSentinel) AddCircuitBreakerRule(resource string, strategy int32, th
 		return fmt.Errorf("failed to add circuit breaker rule: %w", err)
 	}
 
-	log.Infof("Added circuit breaker rule for resource %s with strategy %s", resource, strategy)
+	log.Infof("Added circuit breaker rule for resource %s with strategy %d", resource, strategy)
 	return nil
 }
 

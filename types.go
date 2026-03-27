@@ -48,18 +48,18 @@ type SystemRule struct {
 
 // SentinelConfig represents the configuration for Sentinel plugin
 type SentinelConfig struct {
-	Enabled     bool                   `yaml:"enabled" json:"enabled"`
-	AppName     string                 `yaml:"app_name" json:"app_name"`
-	LogLevel    string                 `yaml:"log_level" json:"log_level"`
-	LogDir      string                 `yaml:"log_dir" json:"log_dir"`
-	FlowRules   []FlowRule            `yaml:"flow_rules" json:"flow_rules"`
-	CBRules     []CircuitBreakerRule  `yaml:"circuit_breaker_rules" json:"circuit_breaker_rules"`
-	SystemRules []SystemRule          `yaml:"system_rules" json:"system_rules"`
-	Metrics     MetricsConfig         `yaml:"metrics" json:"metrics"`
-	Dashboard   DashboardConfig       `yaml:"dashboard" json:"dashboard"`
-	DataSource  DataSourceConfig      `yaml:"data_source" json:"data_source"`
-	WarmUp      WarmUpConfig          `yaml:"warm_up" json:"warm_up"`
-	Advanced    AdvancedConfig        `yaml:"advanced" json:"advanced"`
+	Enabled     bool                 `yaml:"enabled" json:"enabled"`
+	AppName     string               `yaml:"app_name" json:"app_name"`
+	LogLevel    string               `yaml:"log_level" json:"log_level"`
+	LogDir      string               `yaml:"log_dir" json:"log_dir"`
+	FlowRules   []FlowRule           `yaml:"flow_rules" json:"flow_rules"`
+	CBRules     []CircuitBreakerRule `yaml:"circuit_breaker_rules" json:"circuit_breaker_rules"`
+	SystemRules []SystemRule         `yaml:"system_rules" json:"system_rules"`
+	Metrics     MetricsConfig        `yaml:"metrics" json:"metrics"`
+	Dashboard   DashboardConfig      `yaml:"dashboard" json:"dashboard"`
+	DataSource  DataSourceConfig     `yaml:"data_source" json:"data_source"`
+	WarmUp      WarmUpConfig         `yaml:"warm_up" json:"warm_up"`
+	Advanced    AdvancedConfig       `yaml:"advanced" json:"advanced"`
 }
 
 // MetricsConfig represents metrics configuration
@@ -92,7 +92,7 @@ type WarmUpConfig struct {
 
 // AdvancedConfig represents advanced configuration
 type AdvancedConfig struct {
-	StatIntervalMs uint32 `yaml:"stat_interval_ms" json:"stat_interval_ms"`
+	StatIntervalMs            uint32 `yaml:"stat_interval_ms" json:"stat_interval_ms"`
 	MetricLogFlushIntervalSec uint32 `yaml:"metric_log_flush_interval_sec" json:"metric_log_flush_interval_sec"`
 }
 
@@ -100,24 +100,25 @@ type AdvancedConfig struct {
 type PlugSentinel struct {
 	// Inherits from base plugin
 	*plugins.BasePlugin
-	
+
 	// Sentinel configuration
 	conf *SentinelConfig
-	
+	rt   plugins.Runtime
+
 	// Sentinel initialized flag
 	sentinelInitialized bool
-	
+
 	// Rule managers (these are not exposed as public types in sentinel-golang)
 	// We'll manage rules through the public APIs instead
-	
+
 	// Metrics and monitoring
 	metricsCollector *MetricsCollector
 	dashboardServer  *DashboardServer
-	
+
 	// Internal state
 	isInitialized bool
 	mu            sync.RWMutex
-	
+
 	// Background tasks control
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -125,15 +126,15 @@ type PlugSentinel struct {
 
 // MetricsCollector handles metrics collection for Sentinel
 type MetricsCollector struct {
-	enabled          bool
-	interval         time.Duration
-	requestCounter   map[string]int64
-	blockedCounter   map[string]int64
-	passedCounter    map[string]int64
-	rtHistogram      map[string][]float64
-	mu               sync.RWMutex
-	stopCh           chan struct{}
-	wg               sync.WaitGroup
+	enabled        bool
+	interval       time.Duration
+	requestCounter map[string]int64
+	blockedCounter map[string]int64
+	passedCounter  map[string]int64
+	rtHistogram    map[string][]float64
+	mu             sync.RWMutex
+	stopCh         chan struct{}
+	wg             sync.WaitGroup
 }
 
 // DashboardServer provides a web dashboard for monitoring
@@ -170,12 +171,12 @@ type FlowControlResult struct {
 
 // CircuitBreakerState represents the state of a circuit breaker
 type CircuitBreakerState struct {
-	Resource    string                        `json:"resource"`
-	State       circuitbreaker.State          `json:"state"`
-	Rule        *circuitbreaker.Rule          `json:"rule"`
-	LastChange  time.Time                     `json:"last_change"`
-	ErrorCount  int64                         `json:"error_count"`
-	RequestCount int64                        `json:"request_count"`
+	Resource     string               `json:"resource"`
+	State        circuitbreaker.State `json:"state"`
+	Rule         *circuitbreaker.Rule `json:"rule"`
+	LastChange   time.Time            `json:"last_change"`
+	ErrorCount   int64                `json:"error_count"`
+	RequestCount int64                `json:"request_count"`
 }
 
 // SentinelMiddleware provides middleware integration for various frameworks
@@ -185,8 +186,8 @@ type SentinelMiddleware struct {
 
 // RequestContext holds context information for a request
 type RequestContext struct {
-	Resource    string
-	StartTime   time.Time
-	Entry       interface{} // Sentinel entry (using interface{} since SentinelEntry is not exported)
-	Metadata    map[string]interface{}
+	Resource  string
+	StartTime time.Time
+	Entry     interface{} // Sentinel entry (using interface{} since SentinelEntry is not exported)
+	Metadata  map[string]interface{}
 }

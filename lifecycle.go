@@ -19,6 +19,10 @@ import (
 func (s *PlugSentinel) InitializeResources(rt plugins.Runtime) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.BasePlugin.InitializeResources(rt); err != nil {
+		return err
+	}
+	s.rt = rt
 
 	// Initialize configuration structure
 	s.conf = &SentinelConfig{}
@@ -66,6 +70,9 @@ func (s *PlugSentinel) StartupTasks() error {
 	if !s.isInitialized {
 		return fmt.Errorf("sentinel plugin not initialized")
 	}
+	if s.stopCh == nil {
+		s.stopCh = make(chan struct{})
+	}
 
 	// Load flow control rules
 	if err := s.loadFlowRules(); err != nil {
@@ -94,6 +101,18 @@ func (s *PlugSentinel) StartupTasks() error {
 		go s.dashboardServer.Start(&s.wg, s.stopCh)
 	}
 
+	if s.rt != nil {
+		if err := s.rt.RegisterSharedResource(pluginName, s); err != nil {
+			log.Warnf("failed to register sentinel shared resource %s: %v", pluginName, err)
+		}
+		if err := s.rt.RegisterPrivateResource("metrics_collector", s.metricsCollector); err != nil && s.metricsCollector != nil {
+			log.Warnf("failed to register sentinel private metrics resource: %v", err)
+		}
+		if err := s.rt.RegisterPrivateResource("dashboard_server", s.dashboardServer); err != nil && s.dashboardServer != nil {
+			log.Warnf("failed to register sentinel private dashboard resource: %v", err)
+		}
+	}
+
 	log.Infof("Sentinel plugin started successfully")
 	return nil
 }
@@ -106,7 +125,13 @@ func (s *PlugSentinel) CleanupTasks() error {
 	log.Infof("Stopping Sentinel plugin...")
 
 	// Signal all background tasks to stop
-	close(s.stopCh)
+	if s.stopCh != nil {
+		select {
+		case <-s.stopCh:
+		default:
+			close(s.stopCh)
+		}
+	}
 
 	// Wait for all background tasks to complete
 	s.wg.Wait()
@@ -177,6 +202,13 @@ func (s *PlugSentinel) Configure(c any) error {
 	return nil
 }
 
+func (s *PlugSentinel) PluginProtocol() plugins.PluginProtocol {
+	protocol := s.BasePlugin.PluginProtocol()
+	protocol.ConfigValidation = true
+	protocol.ConfigHotReload = true
+	return protocol
+}
+
 // initializeSentinelCore initializes the Sentinel core components
 func (s *PlugSentinel) initializeSentinelCore() error {
 	// Configure Sentinel
@@ -211,7 +243,10 @@ func (s *PlugSentinel) setLoggingLevel() error {
 // validateAndSetDefaults validates configuration and sets default values
 func (s *PlugSentinel) validateAndSetDefaults() error {
 	if s.conf.AppName == "" {
-		s.conf.AppName = "lynx-app"
+		s.conf.AppName = currentLynxName()
+		if s.conf.AppName == "" {
+			s.conf.AppName = "lynx-app"
+		}
 	}
 
 	if s.conf.LogDir == "" {
