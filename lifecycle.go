@@ -203,10 +203,7 @@ func (s *PlugSentinel) Configure(c any) error {
 }
 
 func (s *PlugSentinel) PluginProtocol() plugins.PluginProtocol {
-	protocol := s.BasePlugin.PluginProtocol()
-	protocol.ConfigValidation = true
-	protocol.ConfigHotReload = true
-	return protocol
+	return s.BasePlugin.PluginProtocol()
 }
 
 // initializeSentinelCore initializes the Sentinel core components
