@@ -202,10 +202,6 @@ func (s *PlugSentinel) Configure(c any) error {
 	return nil
 }
 
-func (s *PlugSentinel) PluginProtocol() plugins.PluginProtocol {
-	return s.BasePlugin.PluginProtocol()
-}
-
 // initializeSentinelCore initializes the Sentinel core components
 func (s *PlugSentinel) initializeSentinelCore() error {
 	// Configure Sentinel

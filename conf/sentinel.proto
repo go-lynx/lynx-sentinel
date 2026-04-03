@@ -10,56 +10,73 @@ option go_package = "github.com/go-lynx/lynx/plugins/sentinel/conf;conf";
 // Import Duration type from google/protobuf/duration.proto
 import "google/protobuf/duration.proto";
 
-// Define Sentinel configuration message type
+// Sentinel keeps the generated compatibility schema for this plugin.
+// The current runtime YAML model is described in README.md and conf/sentinel.yaml.
+// Some legacy top-level fields are preserved here for compatibility and are not
+// directly consumed by the current startup path.
 message Sentinel {
   // —— Basic Configuration ——
-  // Enable Sentinel plugin
+  // Enable Sentinel plugin.
+  // Kept for compatibility; the current module runtime does not branch on this field.
   bool enabled = 1;
   // Application name for Sentinel
   string app_name = 2;
   // Log directory for Sentinel
   string log_dir = 3;
-  // Log level (debug, info, warn, error)
+  // Log level (debug, info, warn, error).
+  // Kept for compatibility; the current runtime still follows global logging configuration.
   string log_level = 4;
 
   // —— Flow Control Configuration ——
   // Flow control rules
   repeated FlowRule flow_rules = 5;
-  // Default QPS limit for unspecified resources
+  // Default QPS limit for unspecified resources.
+  // Compatibility field; the current runtime falls back to an internal default rule instead.
   double default_qps_limit = 6;
-  // Enable warm-up mode
+  // Enable warm-up mode.
+  // Compatibility field; prefer explicit flow rule fields in the current YAML model.
   bool enable_warm_up = 7;
-  // Warm-up duration
+  // Warm-up duration.
+  // Compatibility field; prefer explicit flow rule fields in the current YAML model.
   google.protobuf.Duration warm_up_duration = 8;
 
   // —— Circuit Breaker Configuration ——
   // Circuit breaker rules
   repeated CircuitBreakerRule circuit_breaker_rules = 9;
-  // Default circuit breaker configuration
+  // Default circuit breaker configuration.
+  // Compatibility field; current runtime uses explicit rule lists or an internal fallback rule.
   DefaultCircuitBreakerConfig default_circuit_breaker = 10;
 
   // —— System Protection Configuration ——
   // System protection rules
   repeated SystemRule system_rules = 11;
-  // Enable system protection
+  // Enable system protection.
+  // Compatibility field; current runtime relies on explicit system_rules entries.
   bool enable_system_protection = 12;
 
   // —— Monitoring Configuration ——
-  // Enable metrics collection
+  // Enable metrics collection.
+  // Compatibility field; current runtime uses nested metrics settings in SentinelConfig.
   bool enable_metrics = 13;
-  // Metrics collection interval
+  // Metrics collection interval.
+  // Compatibility field; current runtime uses nested metrics settings in SentinelConfig.
   google.protobuf.Duration metrics_interval = 14;
-  // Enable dashboard
+  // Enable dashboard.
+  // Compatibility field; current runtime uses nested dashboard settings in SentinelConfig.
   bool enable_dashboard = 15;
-  // Dashboard port
+  // Dashboard port.
+  // Compatibility field; current runtime uses nested dashboard settings in SentinelConfig.
   int32 dashboard_port = 16;
 
   // —— Advanced Configuration ——
-  // Maximum allowed concurrent requests
+  // Maximum allowed concurrent requests.
+  // Compatibility field; not wired into the current runtime startup path.
   int32 max_concurrent_requests = 17;
-  // Request timeout
+  // Request timeout.
+  // Compatibility field; not wired into the current runtime startup path.
   google.protobuf.Duration request_timeout = 18;
-  // Enable request logging
+  // Enable request logging.
+  // Compatibility field; not wired into the current runtime startup path.
   bool enable_request_logging = 19;
 }
 

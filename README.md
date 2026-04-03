@@ -1,154 +1,89 @@
 # Sentinel Plugin for Lynx
 
-The Sentinel plugin provides traffic control, circuit breaking, and system protection capabilities for the Lynx framework.
+Sentinel traffic protection plugin for Lynx. The current runtime scans YAML into `SentinelConfig`, loads flow, circuit-breaker, and system rules during startup, and can optionally start an in-process metrics collector plus a lightweight dashboard server.
 
-## Features
+## Current Scope
 
-- **Traffic Control**: Flow control based on QPS, concurrency, and other metrics
-- **Circuit Breaking**: Automatic circuit breaking when services encounter exceptions to protect system stability
-- **System Protection**: System-level protection based on system load, CPU usage, and other metrics
-- **Real-time Monitoring**: Real-time traffic and performance metrics monitoring
-- **Dashboard**: Built-in web console for visual rule management and monitoring data
+- Flow control, circuit breaker, and system rule loading from `lynx.sentinel`
+- Convenience helpers such as `Entry`, `Execute`, `ProtectFunction`, HTTP middleware, and gRPC interceptors
+- Optional in-process metrics collection and dashboard endpoints
+- Programmatic rule add/remove helpers plus `ReloadRules()`
+- Validation for app-name fallback, dashboard port, and basic rule boundaries
 
-## Configuration
+The following configuration items should currently be treated as compatibility or reserved fields rather than active runtime switches:
 
-Configure the Sentinel plugin under the `lynx.sentinel` configuration node:
+- Top-level `enabled`
+- `log_level` as a per-plugin logger switch
+- `data_source`
+- `warm_up`
+- `advanced`
+- Legacy proto-only fields such as `default_qps_limit`, `enable_warm_up`, `warm_up_duration`, `default_circuit_breaker`, `enable_system_protection`, `enable_metrics`, `metrics_interval`, `enable_dashboard`, `dashboard_port`, `max_concurrent_requests`, `request_timeout`, and `enable_request_logging`
+
+## Current YAML Model
+
+Configure the plugin under `lynx.sentinel`:
 
 ```yaml
 lynx:
   sentinel:
-    enabled: true
     app_name: "my-app"
-    log_level: "info"
     log_dir: "./logs/sentinel"
-    
-    # Flow control rules
+    log_level: "info"
+
     flow_rules:
       - resource: "/api/users"
+        token_calculate_strategy: 0  # flow.Direct
+        control_behavior: 0          # flow.Reject
         threshold: 100
-        token_calculate_strategy: "direct"
-        control_behavior: "reject"
-        enabled: true
-    
-    # Circuit breaker rules
+        stat_interval_in_ms: 1000
+
     circuit_breaker_rules:
-      - resource: "/api/orders"
-        strategy: "error_ratio"
+      - resource: "order-service"
+        strategy: 1                  # circuitbreaker.ErrorRatio
         threshold: 0.5
         min_request_amount: 10
         retry_timeout_ms: 5000
-        enabled: true
-    
-    # System rules
+        stat_interval_ms: 1000
+
     system_rules:
-      - metric_type: "load"
-        threshold: 2.0
-        strategy: "bbr"
-        enabled: true
-    
-    # Metrics collection
+      - metric_type: 0               # system.Load
+        trigger_count: 2.0
+
     metrics:
       enabled: true
-      interval: "1s"
-    
-    # Dashboard
+      interval: "30s"
+
     dashboard:
-      enabled: true
+      enabled: false
       port: 8719
 ```
 
-## Usage
+## Effective Defaults And Validation
 
-### 1. Resource Protection
+- `app_name` falls back to the Lynx application name, then to `lynx-app`
+- `log_dir` defaults to `./logs/sentinel`
+- `log_level` defaults to `info`, but the current runtime still follows global logging configuration instead of applying a per-plugin level
+- `metrics.interval` defaults to `30s`
+- `dashboard.port` defaults to `8719`
+- `dashboard.port`, when set, must be within `1024` to `65535`
+- Each `flow_rules[].resource` and `circuit_breaker_rules[].resource` must be non-empty
+- Flow and circuit-breaker thresholds must be non-negative
 
-```go
-import "github.com/go-lynx/lynx/plugins/sentinel"
+## Capability Notes
 
-// Method 1: Using Entry/Exit pattern
-entry, err := sentinel.Entry("my-resource")
-if err != nil {
-    // Request blocked by flow control or circuit breaker
-    return err
-}
-defer entry.Exit()
+- `CreateHTTPMiddleware()` protects HTTP requests using the extractor result or request path as the resource name
+- `CreateGRPCInterceptor()` returns a middleware wrapper that exposes unary and stream interceptors
+- `GetMetrics()`, `GetResourceStats()`, and `GetAllResourceStats()` require `metrics.enabled: true`
+- `GetCircuitBreakerState()` currently returns a lightweight state view rather than full Sentinel internal breaker details
+- The dashboard is a simple in-process HTTP server exposing `/api/metrics`, `/api/resources`, `/api/rules`, and `/api/health`; it is not the upstream Sentinel console
 
-// Execute business logic
-doSomething()
+## Compatibility Notes
 
-// Method 2: Using Execute wrapper
-err := sentinel.Execute("my-resource", func() error {
-    return doSomething()
-})
-```
+- `conf/sentinel.proto` is kept as a generated compatibility schema
+- `README.md` and `conf/sentinel.yaml` describe the current runtime YAML model
+- Fields listed in the reserved section above should not be documented as already wired runtime behavior until the framework-level config model is unified
 
-### 2. HTTP Middleware
+## Validation And Examples
 
-```go
-// Create HTTP middleware
-middleware, err := sentinel.CreateHTTPMiddleware(func(req interface{}) string {
-    // Extract resource name from request
-    return req.(*http.Request).URL.Path
-})
-```
-
-### 3. gRPC Interceptor
-
-```go
-// Create gRPC interceptor
-interceptor, err := sentinel.CreateGRPCInterceptor()
-```
-
-### 4. Dynamic Rule Management
-
-```go
-// Add flow control rule
-err := sentinel.AddFlowRule(&sentinel.FlowRule{
-    Resource:  "new-api",
-    Threshold: 50,
-    // ...
-})
-
-// Remove rule
-err := sentinel.RemoveFlowRule("new-api")
-```
-
-### 5. Monitoring Data Retrieval
-
-```go
-// Get all metrics
-metrics, err := sentinel.GetMetrics()
-
-// Get specific resource statistics
-stats, err := sentinel.GetResourceStats("my-resource")
-
-// Get circuit breaker state
-state, err := sentinel.GetCircuitBreakerState("my-resource")
-```
-
-## Rule Configuration Files
-
-The plugin supports loading rule configurations from files:
-
-- `conf/rules/flow_rules.json`: Flow control rules
-- `conf/rules/circuit_breaker_rules.json`: Circuit breaker rules  
-- `conf/rules/system_rules.json`: System protection rules
-
-## Dashboard
-
-After enabling the Dashboard, you can access `http://localhost:8719` via browser to view:
-
-- Real-time traffic monitoring
-- Rule configuration management
-- System performance metrics
-- Circuit breaker status
-
-## Dependencies
-
-- [Sentinel-Golang](https://github.com/alibaba/sentinel-golang): Alibaba's open-source traffic control component
-
-## Notes
-
-1. Ensure the Dashboard port doesn't conflict with other services
-2. Set flow control thresholds reasonably to avoid excessive throttling
-3. Circuit breaker rule thresholds should be adjusted based on actual business scenarios
-4. It's recommended to enable metrics collection and monitoring in production environments
+- Example file: `conf/sentinel.yaml`
+- Validation baseline and reserved-field notes: `VALIDATION.md`
