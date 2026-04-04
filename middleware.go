@@ -1,9 +1,42 @@
 package sentinel
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+
+	kratosmiddleware "github.com/go-kratos/kratos/v2/middleware"
+	"github.com/go-kratos/kratos/v2/transport"
 )
+
+func (s *PlugSentinel) rateLimitMiddleware(defaultResource string) kratosmiddleware.Middleware {
+	return func(next kratosmiddleware.Handler) kratosmiddleware.Handler {
+		return func(ctx context.Context, req any) (any, error) {
+			resource := defaultResource
+			if tr, ok := transport.FromServerContext(ctx); ok && tr != nil && tr.Operation() != "" {
+				resource = tr.Operation()
+			}
+
+			var resp any
+			err := s.ExecuteWithContext(ctx, resource, func(runCtx context.Context) error {
+				var err error
+				resp, err = next(runCtx, req)
+				return err
+			})
+			return resp, err
+		}
+	}
+}
+
+// HTTPRateLimit implements lynx.RateLimiter for HTTP entry points.
+func (s *PlugSentinel) HTTPRateLimit() kratosmiddleware.Middleware {
+	return s.rateLimitMiddleware("http.request")
+}
+
+// GRPCRateLimit implements lynx.RateLimiter for gRPC entry points.
+func (s *PlugSentinel) GRPCRateLimit() kratosmiddleware.Middleware {
+	return s.rateLimitMiddleware("grpc.request")
+}
 
 // CreateHTTPMiddleware creates HTTP middleware for Sentinel protection
 func (s *PlugSentinel) CreateHTTPMiddleware(resourceExtractor func(interface{}) string) interface{} {

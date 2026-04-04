@@ -10,6 +10,7 @@ import (
 	"github.com/alibaba/sentinel-golang/core/flow"
 	"github.com/alibaba/sentinel-golang/core/system"
 	"github.com/alibaba/sentinel-golang/logging"
+	"github.com/go-lynx/lynx"
 	"github.com/go-lynx/lynx/log"
 	"github.com/go-lynx/lynx/plugins"
 )
@@ -99,8 +100,14 @@ func (s *PlugSentinel) StartupTasks() error {
 		go s.dashboardServer.Start(&s.wg, s.stopCh)
 	}
 
+	if app := currentLynxApp(); app != nil {
+		if err := app.SetRateLimiter(s); err != nil {
+			log.Warnf("failed to attach Sentinel rate limiter capability to Lynx app: %v", err)
+		}
+	}
+
 	if s.rt != nil {
-		if err := s.rt.RegisterSharedResource(pluginName, s); err != nil {
+		if err := lynx.RegisterControlPlaneCapabilityResources(s.rt, pluginName, s); err != nil {
 			log.Warnf("failed to register sentinel shared resource %s: %v", pluginName, err)
 		}
 		if err := s.rt.RegisterPrivateResource("metrics_collector", s.metricsCollector); err != nil && s.metricsCollector != nil {

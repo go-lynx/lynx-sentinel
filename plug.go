@@ -12,6 +12,14 @@ import (
 	"github.com/go-lynx/lynx/plugins"
 )
 
+// ControlPlaneCapabilities declares Sentinel's explicit governance contract.
+func (s *PlugSentinel) ControlPlaneCapabilities() []lynx.ControlPlaneCapability {
+	return []lynx.ControlPlaneCapability{
+		lynx.ControlPlaneCapabilityRateLimit,
+		lynx.ControlPlaneCapabilityTrafficProtection,
+	}
+}
+
 // EntryOption Type aliases for convenience
 type EntryOption = api.EntryOption
 type SentinelEntry = interface{}
