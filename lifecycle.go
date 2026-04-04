@@ -70,9 +70,7 @@ func (s *PlugSentinel) StartupTasks() error {
 	if !s.isInitialized {
 		return fmt.Errorf("sentinel plugin not initialized")
 	}
-	if s.stopCh == nil {
-		s.stopCh = make(chan struct{})
-	}
+	s.resetStopChannel()
 
 	// Load flow control rules
 	if err := s.loadFlowRules(); err != nil {
@@ -115,6 +113,24 @@ func (s *PlugSentinel) StartupTasks() error {
 
 	log.Infof("Sentinel plugin started successfully")
 	return nil
+}
+
+func (s *PlugSentinel) resetStopChannel() {
+	if s.stopCh == nil || isStopChannelClosed(s.stopCh) {
+		s.stopCh = make(chan struct{})
+	}
+}
+
+func isStopChannelClosed(stopCh <-chan struct{}) bool {
+	if stopCh == nil {
+		return true
+	}
+	select {
+	case <-stopCh:
+		return true
+	default:
+		return false
+	}
 }
 
 // CleanupTasks implements plugin cleanup tasks

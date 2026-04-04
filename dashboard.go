@@ -11,6 +11,8 @@ import (
 	"github.com/go-lynx/lynx/log"
 )
 
+var dashboardStartTimes sync.Map
+
 // NewDashboardServer creates a new dashboard server
 func NewDashboardServer(port int, metricsCollector *MetricsCollector) *DashboardServer {
 	return &DashboardServer{
@@ -23,6 +25,8 @@ func NewDashboardServer(port int, metricsCollector *MetricsCollector) *Dashboard
 // Start starts the dashboard server
 func (ds *DashboardServer) Start(wg *sync.WaitGroup, stopCh chan struct{}) {
 	defer wg.Done()
+	dashboardStartTimes.Store(ds, time.Now())
+	defer dashboardStartTimes.Delete(ds)
 
 	mux := http.NewServeMux()
 
@@ -227,10 +231,17 @@ func (ds *DashboardServer) handleRules(w http.ResponseWriter, r *http.Request) {
 func (ds *DashboardServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	uptime := "unknown"
+	if startedAt, ok := dashboardStartTimes.Load(ds); ok {
+		if ts, ok := startedAt.(time.Time); ok {
+			uptime = time.Since(ts).String()
+		}
+	}
+
 	health := map[string]interface{}{
 		"status":    "ok",
 		"timestamp": time.Now().Format(time.RFC3339),
-		"uptime":    time.Since(time.Now()).String(), // This would be calculated properly in real implementation
+		"uptime":    uptime,
 		"version":   "1.0.0",
 		"services": map[string]string{
 			"dashboard":         "running",

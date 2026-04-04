@@ -1,6 +1,8 @@
 package sentinel
 
 import (
+	"encoding/json"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -278,6 +280,61 @@ func TestNewDashboardServer(t *testing.T) {
 	assert.NotNil(t, server)
 	assert.Equal(t, int32(8719), server.port)
 	assert.Equal(t, collector, server.metricsCollector)
+}
+
+func TestPlugSentinel_ResetStopChannelAfterCleanup(t *testing.T) {
+	plugin := NewSentinelPlugin()
+
+	if err := plugin.CleanupTasks(); err != nil {
+		t.Fatalf("CleanupTasks failed: %v", err)
+	}
+
+	closedStopCh := plugin.stopCh
+	select {
+	case <-closedStopCh:
+	default:
+		t.Fatal("expected stop channel to be closed after cleanup")
+	}
+
+	plugin.resetStopChannel()
+
+	if plugin.stopCh == nil {
+		t.Fatal("expected resetStopChannel to recreate stop channel")
+	}
+	if plugin.stopCh == closedStopCh {
+		t.Fatal("expected resetStopChannel to replace the closed stop channel")
+	}
+	select {
+	case <-plugin.stopCh:
+		t.Fatal("expected reset stop channel to stay open")
+	default:
+	}
+}
+
+func TestDashboardServer_HandleHealthReportsUptime(t *testing.T) {
+	server := NewDashboardServer(8719, nil)
+	dashboardStartTimes.Store(server, time.Now().Add(-2*time.Second))
+	defer dashboardStartTimes.Delete(server)
+
+	req := httptest.NewRequest("GET", "/api/health", nil)
+	recorder := httptest.NewRecorder()
+
+	server.handleHealth(recorder, req)
+
+	var payload struct {
+		Uptime string `json:"uptime"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode health payload: %v", err)
+	}
+
+	uptime, err := time.ParseDuration(payload.Uptime)
+	if err != nil {
+		t.Fatalf("failed to parse uptime %q: %v", payload.Uptime, err)
+	}
+	if uptime <= 0 {
+		t.Fatalf("expected positive uptime, got %v", uptime)
+	}
 }
 
 // TestPlugSentinel_CreateMiddleware tests middleware creation
