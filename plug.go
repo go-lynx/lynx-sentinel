@@ -3,11 +3,9 @@ package sentinel
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/alibaba/sentinel-golang/api"
 	"github.com/go-lynx/lynx"
-	"github.com/go-lynx/lynx/log"
 	"github.com/go-lynx/lynx/pkg/factory"
 	"github.com/go-lynx/lynx/plugins"
 )
@@ -336,14 +334,5 @@ func Shutdown() error {
 	if err != nil {
 		return err
 	}
-
-	// Stop the plugin
-	close(plugin.stopCh)
-
-	// Wait for all goroutines to finish
-	var wg sync.WaitGroup
-	wg.Wait()
-
-	log.Infof("Sentinel plugin shutdown completed")
-	return nil
+	return plugin.CleanupTasks()
 }
