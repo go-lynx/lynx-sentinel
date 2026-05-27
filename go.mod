@@ -7,7 +7,7 @@ toolchain go1.26.2
 require (
 	github.com/alibaba/sentinel-golang v1.0.4
 	github.com/go-kratos/kratos/v2 v2.9.2
-	github.com/go-lynx/lynx v1.6.0-beta
+	github.com/go-lynx/lynx v1.6.1
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/protobuf v1.36.10
 )
@@ -59,5 +59,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/go-lynx/lynx => ../lynx
