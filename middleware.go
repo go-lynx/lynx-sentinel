@@ -39,7 +39,7 @@ func (s *PlugSentinel) GRPCRateLimit() kratosmiddleware.Middleware {
 }
 
 // CreateHTTPMiddleware creates HTTP middleware for Sentinel protection
-func (s *PlugSentinel) CreateHTTPMiddleware(resourceExtractor func(interface{}) string) interface{} {
+func (s *PlugSentinel) CreateHTTPMiddleware(resourceExtractor func(any) string) any {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			resource := resourceExtractor(r)
@@ -67,9 +67,9 @@ func (s *PlugSentinel) CreateHTTPMiddleware(resourceExtractor func(interface{}) 
 	}
 }
 
-// CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection
-// This method returns a middleware instance that provides both unary and stream interceptors
-func (s *PlugSentinel) CreateGRPCInterceptor() interface{} {
+// CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection.
+// This method returns a middleware instance that provides both unary and stream interceptors.
+func (s *PlugSentinel) CreateGRPCInterceptor() any {
 	// Return the SentinelMiddleware which provides GRPCUnaryInterceptor and GRPCStreamInterceptor
 	return s.CreateMiddleware()
 }

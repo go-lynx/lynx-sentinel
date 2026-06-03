@@ -189,11 +189,11 @@ func (mc *MetricsCollector) Reset() {
 }
 
 // GetMetricsSummary returns a summary of all metrics
-func (mc *MetricsCollector) GetMetricsSummary() map[string]interface{} {
+func (mc *MetricsCollector) GetMetricsSummary() map[string]any {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
 
-	summary := make(map[string]interface{})
+	summary := make(map[string]any)
 
 	var totalRequests, totalPassed, totalBlocked int64
 	resourceCount := 0

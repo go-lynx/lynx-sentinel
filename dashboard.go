@@ -141,7 +141,9 @@ func (ds *DashboardServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 </html>`
 
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(html))
+	if _, err := w.Write([]byte(html)); err != nil {
+		log.Errorf("Failed to write dashboard index: %v", err)
+	}
 }
 
 // handleMetrics serves metrics data
@@ -173,9 +175,9 @@ func (ds *DashboardServer) handleResources(w http.ResponseWriter, r *http.Reques
 	stats := ds.metricsCollector.GetAllResourceStats()
 
 	// Convert to JSON-friendly format
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	for resource, stat := range stats {
-		result[resource] = map[string]interface{}{
+		result[resource] = map[string]any{
 			"resource":  stat.Resource,
 			"total_qps": stat.TotalQPS,
 			"pass_qps":  stat.PassQPS,
@@ -210,7 +212,7 @@ func (ds *DashboardServer) handleRules(w http.ResponseWriter, r *http.Request) {
 	systemRules := plugin.GetSystemRules()
 
 	// Convert to JSON-friendly format
-	rules := map[string]interface{}{
+	rules := map[string]any{
 		"flow_rules":            flowRules,
 		"circuit_breaker_rules": circuitBreakerRules,
 		"system_rules":          systemRules,
@@ -238,7 +240,7 @@ func (ds *DashboardServer) handleHealth(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	health := map[string]interface{}{
+	health := map[string]any{
 		"status":    "ok",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"uptime":    uptime,

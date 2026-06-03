@@ -1,8 +1,13 @@
+// Package sentinel provides a Sentinel flow-control and circuit-breaker plugin for
+// the go-lynx framework. It wraps alibaba/sentinel-golang and exposes flow control,
+// circuit breaking, and system protection rules as first-class lynx plugin capabilities,
+// including Prometheus metrics, a built-in web dashboard, and Kratos middleware hooks.
 package sentinel
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/alibaba/sentinel-golang/api"
 	"github.com/go-lynx/lynx"
@@ -20,7 +25,9 @@ func (s *PlugSentinel) ControlPlaneCapabilities() []lynx.ControlPlaneCapability 
 
 // EntryOption Type aliases for convenience
 type EntryOption = api.EntryOption
-type SentinelEntry = interface{}
+
+// SentinelEntry is a type alias for a Sentinel resource entry.
+type SentinelEntry = any
 
 // init registers the Sentinel plugin with the global plugin factory
 func init() {
@@ -57,7 +64,7 @@ func GetSentinel() (*PlugSentinel, error) {
 }
 
 // Entry is a convenience function for resource entry check
-func Entry(resource string, opts ...EntryOption) (interface{}, error) {
+func Entry(resource string, opts ...EntryOption) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return nil, err
@@ -67,7 +74,7 @@ func Entry(resource string, opts ...EntryOption) (interface{}, error) {
 }
 
 // EntryWithContext is a convenience function for resource entry check with context
-func EntryWithContext(ctx context.Context, resource string, opts ...EntryOption) (interface{}, error) {
+func EntryWithContext(ctx context.Context, resource string, opts ...EntryOption) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return nil, err
@@ -121,7 +128,7 @@ func GetCircuitBreakerState(resource string) (*CircuitBreakerState, error) {
 }
 
 // OnConfigUpdate handles configuration updates
-func (s *PlugSentinel) OnConfigUpdate(config interface{}) error {
+func (s *PlugSentinel) OnConfigUpdate(config any) error {
 	// Handle configuration updates
 	if sentinelConfig, ok := config.(*SentinelConfig); ok {
 		s.conf = sentinelConfig
@@ -178,7 +185,7 @@ func RemoveCircuitBreakerRule(resource string) error {
 }
 
 // GetMetrics is a convenience function for getting metrics summary
-func GetMetrics() (map[string]interface{}, error) {
+func GetMetrics() (map[string]any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return nil, err
@@ -234,7 +241,7 @@ func GetDashboardURL() (string, error) {
 }
 
 // CreateHTTPMiddleware creates HTTP middleware for Sentinel protection
-func CreateHTTPMiddleware(resourceExtractor func(interface{}) string) (interface{}, error) {
+func CreateHTTPMiddleware(resourceExtractor func(any) string) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return nil, err
@@ -244,7 +251,7 @@ func CreateHTTPMiddleware(resourceExtractor func(interface{}) string) (interface
 }
 
 // CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection
-func CreateGRPCInterceptor() (interface{}, error) {
+func CreateGRPCInterceptor() (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return nil, err
@@ -290,8 +297,8 @@ func IsHealthy() (bool, error) {
 }
 
 // GetPluginInfo returns plugin information
-func GetPluginInfo() map[string]interface{} {
-	return map[string]interface{}{
+func GetPluginInfo() map[string]any {
+	return map[string]any{
 		"name":        PluginName,
 		"version":     PluginVersion,
 		"description": PluginDescription,
@@ -299,31 +306,27 @@ func GetPluginInfo() map[string]interface{} {
 	}
 }
 
-// WaitForReady waits for the plugin to be ready
+// WaitForReady waits for the plugin to be ready. It polls at 100 ms intervals
+// until the plugin reports healthy, the context is canceled, or the plugin stops.
 func WaitForReady(ctx context.Context) error {
 	plugin, err := GetSentinel()
 	if err != nil {
 		return err
 	}
 
-	// Simple ready check - in a real implementation, you might want more sophisticated checks
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
+		if plugin.IsHealthy() {
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
-			if plugin.IsHealthy() {
-				return nil
-			}
-			// Small delay before next check
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-plugin.stopCh:
-				return fmt.Errorf("plugin stopped")
-			default:
-				// Continue checking
-			}
+		case <-plugin.stopCh:
+			return fmt.Errorf("plugin stopped")
+		case <-ticker.C:
 		}
 	}
 }

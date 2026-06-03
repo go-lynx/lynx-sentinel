@@ -11,7 +11,7 @@ import (
 )
 
 // Entry performs flow control and circuit breaker check for a resource
-func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (interface{}, error) {
+func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (any, error) {
 	if !s.sentinelInitialized {
 		return nil, fmt.Errorf("sentinel plugin not initialized")
 	}
@@ -38,7 +38,7 @@ func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (interfac
 }
 
 // EntryWithContext performs flow control check with context
-func (s *PlugSentinel) EntryWithContext(ctx context.Context, resource string, opts ...api.EntryOption) (interface{}, error) {
+func (s *PlugSentinel) EntryWithContext(ctx context.Context, resource string, opts ...api.EntryOption) (any, error) {
 	// Check if context is already canceled
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context canceled: %w", err)
@@ -179,9 +179,9 @@ func (s *PlugSentinel) CreateMiddleware() *SentinelMiddleware {
 // SentinelMiddleware methods for different frameworks
 
 // HTTPMiddleware creates HTTP middleware function
-func (m *SentinelMiddleware) HTTPMiddleware(resourceExtractor func(interface{}) string) func(interface{}) interface{} {
-	return func(next interface{}) interface{} {
-		return func(ctx interface{}) {
+func (m *SentinelMiddleware) HTTPMiddleware(resourceExtractor func(any) string) func(any) any {
+	return func(next any) any {
+		return func(ctx any) {
 			resource := resourceExtractor(ctx)
 			if resource == "" {
 				resource = "http_request"
@@ -189,7 +189,7 @@ func (m *SentinelMiddleware) HTTPMiddleware(resourceExtractor func(interface{}) 
 
 			err := m.plugin.Execute(resource, func() error {
 				// Call next handler
-				if nextFunc, ok := next.(func(interface{})); ok {
+				if nextFunc, ok := next.(func(any)); ok {
 					nextFunc(ctx)
 				}
 				return nil
@@ -204,18 +204,18 @@ func (m *SentinelMiddleware) HTTPMiddleware(resourceExtractor func(interface{}) 
 }
 
 // GRPCUnaryInterceptor creates gRPC unary interceptor
-func (m *SentinelMiddleware) GRPCUnaryInterceptor() func(context.Context, interface{}, interface{}, interface{}) (interface{}, error) {
-	return func(ctx context.Context, req interface{}, info interface{}, handler interface{}) (interface{}, error) {
+func (m *SentinelMiddleware) GRPCUnaryInterceptor() func(context.Context, any, any, any) (any, error) {
+	return func(ctx context.Context, req any, info any, handler any) (any, error) {
 		// Extract method name as resource
 		resource := "grpc_unary"
 		if methodInfo, ok := info.(interface{ FullMethod() string }); ok {
 			resource = methodInfo.FullMethod()
 		}
 
-		var resp interface{}
+		var resp any
 		err := m.plugin.ExecuteWithContext(ctx, resource, func(ctx context.Context) error {
 			var err error
-			if handlerFunc, ok := handler.(func(context.Context, interface{}) (interface{}, error)); ok {
+			if handlerFunc, ok := handler.(func(context.Context, any) (any, error)); ok {
 				resp, err = handlerFunc(ctx, req)
 			}
 			return err
@@ -226,8 +226,8 @@ func (m *SentinelMiddleware) GRPCUnaryInterceptor() func(context.Context, interf
 }
 
 // GRPCStreamInterceptor creates gRPC stream interceptor
-func (m *SentinelMiddleware) GRPCStreamInterceptor() func(interface{}, interface{}, interface{}, interface{}) error {
-	return func(srv interface{}, stream interface{}, info interface{}, handler interface{}) error {
+func (m *SentinelMiddleware) GRPCStreamInterceptor() func(any, any, any, any) error {
+	return func(srv any, stream any, info any, handler any) error {
 		// Extract method name as resource
 		resource := "grpc_stream"
 		if methodInfo, ok := info.(interface{ FullMethod() string }); ok {
@@ -235,7 +235,7 @@ func (m *SentinelMiddleware) GRPCStreamInterceptor() func(interface{}, interface
 		}
 
 		return m.plugin.Execute(resource, func() error {
-			if handlerFunc, ok := handler.(func(interface{}, interface{}) error); ok {
+			if handlerFunc, ok := handler.(func(any, any) error); ok {
 				return handlerFunc(srv, stream)
 			}
 			return nil
