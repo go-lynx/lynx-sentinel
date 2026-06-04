@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -42,10 +43,23 @@ func (ds *DashboardServer) Start(wg *sync.WaitGroup, stopCh chan struct{}) {
 		Handler: mux,
 	}
 
-	// Start server in a goroutine
+	// Probe the listener synchronously before reporting the server as running so
+	// that a failed bind (e.g. port 8719 already in use) is reflected in real
+	// state rather than being silently logged while IsRunning()/health lie.
+	listener, err := net.Listen("tcp", ds.server.Addr)
+	if err != nil {
+		log.Errorf("Sentinel dashboard server failed to bind on port %d: %v", ds.port, err)
+		ds.setRunning(false)
+		return
+	}
+
+	ds.setRunning(true)
+	defer ds.setRunning(false)
+
+	// Start server in a goroutine using the already-bound listener
 	go func() {
 		log.Infof("Sentinel dashboard server starting on port %d", ds.port)
-		if err := ds.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := ds.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Errorf("Dashboard server error: %v", err)
 		}
 	}()
@@ -240,14 +254,26 @@ func (ds *DashboardServer) handleHealth(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	dashboardStatus := "stopped"
+	overallStatus := "degraded"
+	if ds.IsRunning() {
+		dashboardStatus = "running"
+		overallStatus = "ok"
+	}
+
+	metricsStatus := "stopped"
+	if ds.metricsCollector != nil {
+		metricsStatus = "running"
+	}
+
 	health := map[string]any{
-		"status":    "ok",
+		"status":    overallStatus,
 		"timestamp": time.Now().Format(time.RFC3339),
 		"uptime":    uptime,
 		"version":   "1.0.0",
 		"services": map[string]string{
-			"dashboard":         "running",
-			"metrics_collector": "running",
+			"dashboard":         dashboardStatus,
+			"metrics_collector": metricsStatus,
 			"sentinel_core":     "running",
 		},
 	}
@@ -263,9 +289,19 @@ func (ds *DashboardServer) GetPort() int {
 	return int(ds.port)
 }
 
-// IsRunning returns whether the server is running
+// setRunning records the real running state of the dashboard server.
+func (ds *DashboardServer) setRunning(running bool) {
+	ds.mu.Lock()
+	ds.running = running
+	ds.mu.Unlock()
+}
+
+// IsRunning returns whether the server actually bound its listener and is
+// serving. It reports false when the port bind failed.
 func (ds *DashboardServer) IsRunning() bool {
-	return ds.server != nil
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+	return ds.running
 }
 
 // GetURL returns the dashboard URL

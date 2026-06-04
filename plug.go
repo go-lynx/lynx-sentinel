@@ -127,15 +127,15 @@ func GetCircuitBreakerState(resource string) (*CircuitBreakerState, error) {
 	return plugin.GetCircuitBreakerState(resource), nil
 }
 
-// OnConfigUpdate handles configuration updates
+// OnConfigUpdate handles configuration updates. It routes through Configure so
+// that s.conf and the loaded rules are mutated while holding s.mu, avoiding a
+// data race with Configure/InitializeResources/CheckHealth which read that state
+// under the same lock.
 func (s *PlugSentinel) OnConfigUpdate(config any) error {
-	// Handle configuration updates
-	if sentinelConfig, ok := config.(*SentinelConfig); ok {
-		s.conf = sentinelConfig
-		// Reload rules if needed
-		return s.reloadRules()
+	if _, ok := config.(*SentinelConfig); !ok {
+		return fmt.Errorf("invalid config type for Sentinel plugin")
 	}
-	return fmt.Errorf("invalid config type for Sentinel plugin")
+	return s.Configure(config)
 }
 
 // IsHealthy checks if the plugin is healthy
