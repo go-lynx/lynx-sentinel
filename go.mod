@@ -7,7 +7,7 @@ toolchain go1.26.2
 require (
 	github.com/alibaba/sentinel-golang v1.0.4
 	github.com/go-kratos/kratos/v2 v2.9.2
-	github.com/go-lynx/lynx v1.6.1
+	github.com/go-lynx/lynx v1.6.2
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/protobuf v1.36.10
 )
