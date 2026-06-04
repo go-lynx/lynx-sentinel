@@ -23,7 +23,7 @@ func (s *PlugSentinel) ControlPlaneCapabilities() []lynx.ControlPlaneCapability 
 	}
 }
 
-// EntryOption Type aliases for convenience
+// EntryOption is an alias for api.EntryOption.
 type EntryOption = api.EntryOption
 
 // SentinelEntry is a type alias for a Sentinel resource entry.
@@ -36,7 +36,8 @@ func init() {
 	})
 }
 
-// GetSentinel returns the global Sentinel plugin instance
+// GetSentinel returns the Sentinel plugin, trying the app plugin manager first and
+// falling back to the factory. Returns an error if the plugin is not registered.
 func GetSentinel() (*PlugSentinel, error) {
 	// Try to get from application plugin manager first
 	if lynx.Lynx() != nil && lynx.Lynx().GetPluginManager() != nil {
@@ -63,7 +64,7 @@ func GetSentinel() (*PlugSentinel, error) {
 	return sentinelPlugin, nil
 }
 
-// Entry is a convenience function for resource entry check
+// Entry acquires a Sentinel resource entry, applying flow control and circuit-breaker checks.
 func Entry(resource string, opts ...EntryOption) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -73,7 +74,7 @@ func Entry(resource string, opts ...EntryOption) (any, error) {
 	return plugin.Entry(resource, opts...)
 }
 
-// EntryWithContext is a convenience function for resource entry check with context
+// EntryWithContext is the context-aware variant of Entry.
 func EntryWithContext(ctx context.Context, resource string, opts ...EntryOption) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -83,7 +84,7 @@ func EntryWithContext(ctx context.Context, resource string, opts ...EntryOption)
 	return plugin.EntryWithContext(ctx, resource, opts...)
 }
 
-// Execute is a convenience function for executing a function with Sentinel protection
+// Execute runs fn under Sentinel protection for the named resource.
 func Execute(resource string, fn func() error, opts ...EntryOption) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -93,7 +94,7 @@ func Execute(resource string, fn func() error, opts ...EntryOption) error {
 	return plugin.Execute(resource, fn, opts...)
 }
 
-// ExecuteWithContext is a convenience function for executing a function with Sentinel protection and context
+// ExecuteWithContext is the context-aware variant of Execute.
 func ExecuteWithContext(ctx context.Context, resource string, fn func(context.Context) error, opts ...EntryOption) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -103,7 +104,7 @@ func ExecuteWithContext(ctx context.Context, resource string, fn func(context.Co
 	return plugin.ExecuteWithContext(ctx, resource, fn, opts...)
 }
 
-// CheckFlow is a convenience function for checking flow control
+// CheckFlow evaluates flow-control rules for the named resource and returns the verdict.
 func CheckFlow(resource string) *FlowControlResult {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -117,7 +118,7 @@ func CheckFlow(resource string) *FlowControlResult {
 	return plugin.CheckFlow(resource)
 }
 
-// GetCircuitBreakerState is a convenience function for getting circuit breaker state
+// GetCircuitBreakerState returns the current state of the circuit breaker for the named resource.
 func GetCircuitBreakerState(resource string) (*CircuitBreakerState, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -138,14 +139,14 @@ func (s *PlugSentinel) OnConfigUpdate(config any) error {
 	return s.Configure(config)
 }
 
-// IsHealthy checks if the plugin is healthy
+// IsHealthy returns true when both the plugin and the Sentinel SDK have been initialized.
 func (s *PlugSentinel) IsHealthy() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.isInitialized && s.sentinelInitialized
 }
 
-// AddFlowRule is a convenience function for adding a flow rule
+// AddFlowRule adds a QPS-based flow-control rule for the named resource.
 func AddFlowRule(resource string, qpsLimit float64, controlBehavior string) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -155,7 +156,7 @@ func AddFlowRule(resource string, qpsLimit float64, controlBehavior string) erro
 	return plugin.AddFlowRule(resource, qpsLimit, controlBehavior)
 }
 
-// RemoveFlowRule is a convenience function for removing a flow rule
+// RemoveFlowRule removes the flow-control rule for the named resource.
 func RemoveFlowRule(resource string) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -165,7 +166,7 @@ func RemoveFlowRule(resource string) error {
 	return plugin.RemoveFlowRule(resource)
 }
 
-// AddCircuitBreakerRule is a convenience function for adding a circuit breaker rule
+// AddCircuitBreakerRule adds a circuit-breaker rule for the named resource.
 func AddCircuitBreakerRule(resource string, strategy int32, threshold float64, minRequestAmount uint64) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -174,7 +175,7 @@ func AddCircuitBreakerRule(resource string, strategy int32, threshold float64, m
 	return plugin.AddCircuitBreakerRule(resource, strategy, threshold, minRequestAmount)
 }
 
-// RemoveCircuitBreakerRule is a convenience function for removing a circuit breaker rule
+// RemoveCircuitBreakerRule removes the circuit-breaker rule for the named resource.
 func RemoveCircuitBreakerRule(resource string) error {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -184,7 +185,7 @@ func RemoveCircuitBreakerRule(resource string) error {
 	return plugin.RemoveCircuitBreakerRule(resource)
 }
 
-// GetMetrics is a convenience function for getting metrics summary
+// GetMetrics returns a snapshot of all Sentinel metrics from the metrics collector.
 func GetMetrics() (map[string]any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -198,7 +199,7 @@ func GetMetrics() (map[string]any, error) {
 	return plugin.metricsCollector.GetMetricsSummary(), nil
 }
 
-// GetResourceStats is a convenience function for getting resource statistics
+// GetResourceStats returns per-resource statistics for the named resource.
 func GetResourceStats(resource string) (*ResourceStats, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -212,7 +213,7 @@ func GetResourceStats(resource string) (*ResourceStats, error) {
 	return plugin.metricsCollector.GetResourceStats(resource), nil
 }
 
-// GetAllResourceStats is a convenience function for getting all resource statistics
+// GetAllResourceStats returns statistics for all tracked resources.
 func GetAllResourceStats() (map[string]*ResourceStats, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -226,7 +227,7 @@ func GetAllResourceStats() (map[string]*ResourceStats, error) {
 	return plugin.metricsCollector.GetAllResourceStats(), nil
 }
 
-// GetDashboardURL is a convenience function for getting dashboard URL
+// GetDashboardURL returns the URL of the running Sentinel dashboard, or an error if it is not started.
 func GetDashboardURL() (string, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -240,7 +241,7 @@ func GetDashboardURL() (string, error) {
 	return plugin.dashboardServer.GetURL(), nil
 }
 
-// CreateHTTPMiddleware creates HTTP middleware for Sentinel protection
+// CreateHTTPMiddleware returns an HTTP middleware that applies Sentinel flow control.
 func CreateHTTPMiddleware(resourceExtractor func(any) string) (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -250,7 +251,7 @@ func CreateHTTPMiddleware(resourceExtractor func(any) string) (any, error) {
 	return plugin.CreateHTTPMiddleware(resourceExtractor), nil
 }
 
-// CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection
+// CreateGRPCInterceptor returns a gRPC unary interceptor that applies Sentinel flow control.
 func CreateGRPCInterceptor() (any, error) {
 	plugin, err := GetSentinel()
 	if err != nil {
@@ -260,7 +261,7 @@ func CreateGRPCInterceptor() (any, error) {
 	return plugin.CreateGRPCInterceptor(), nil
 }
 
-// ReloadRules reloads all rules from configuration
+// ReloadRules re-reads flow-control and circuit-breaker rules from the current configuration.
 func ReloadRules() error {
 	plugin, err := GetSentinel()
 	if err != nil {

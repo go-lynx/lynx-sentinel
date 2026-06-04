@@ -86,7 +86,8 @@ func (s *PlugSentinel) InitializeResources(rt plugins.Runtime) error {
 	return nil
 }
 
-// StartupTasks implements plugin startup tasks
+// StartupTasks loads flow-control, circuit-breaker, and system-protection rules,
+// then starts the metrics loop and optional dashboard server.
 func (s *PlugSentinel) StartupTasks() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -163,7 +164,7 @@ func isStopChannelClosed(stopCh <-chan struct{}) bool {
 	}
 }
 
-// CleanupTasks implements plugin cleanup tasks
+// CleanupTasks stops the metrics loop and dashboard server.
 func (s *PlugSentinel) CleanupTasks() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

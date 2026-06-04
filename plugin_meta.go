@@ -4,46 +4,29 @@ import (
 	"github.com/go-lynx/lynx/plugins"
 )
 
-// Plugin metadata
 const (
-	// Plugin unique name
-	pluginName = "sentinel.flow_control"
-	// PluginName Alias for external access
-	PluginName = pluginName
-	// Plugin version number
-	pluginVersion = "v1.6.1"
-	// PluginVersion Alias for external access
-	PluginVersion = pluginVersion
-	// Plugin description
+	pluginName        = "sentinel.flow_control"
+	PluginName        = pluginName
+	pluginVersion     = "v1.6.1"
+	PluginVersion     = pluginVersion
 	pluginDescription = "Sentinel flow control and circuit breaker plugin for lynx framework"
-	// PluginDescription Alias for external access
 	PluginDescription = pluginDescription
-	// Configuration prefix, used to read plugin-related configuration from config
-	confPrefix = "lynx.sentinel"
-	// ConfPrefix Alias for compatibility
-	ConfPrefix = "lynx.sentinel"
-	// Plugin weight - higher values load first, Sentinel should load early for protection
+	confPrefix        = "lynx.sentinel"
+	ConfPrefix        = "lynx.sentinel"
+	// pluginWeight is intentionally high so Sentinel initializes before the plugins it protects.
 	pluginWeight = 200
-	// PluginWeight Alias for external access
 	PluginWeight = pluginWeight
 )
 
-// NewSentinelPlugin creates a new Sentinel plugin instance
-// Returns a pointer to PlugSentinel struct
+// NewSentinelPlugin creates a new Sentinel plugin instance.
 func NewSentinelPlugin() *PlugSentinel {
 	return &PlugSentinel{
 		BasePlugin: plugins.NewBasePlugin(
-			// Generate plugin unique ID
 			plugins.GeneratePluginID("", pluginName, pluginVersion),
-			// Plugin name
 			pluginName,
-			// Plugin description
 			pluginDescription,
-			// Plugin version
 			pluginVersion,
-			// Configuration prefix
 			confPrefix,
-			// Weight - high priority for protection
 			pluginWeight,
 		),
 		stopCh: make(chan struct{}),
