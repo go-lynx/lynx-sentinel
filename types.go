@@ -144,6 +144,9 @@ type DashboardServer struct {
 	server           *http.Server // HTTP server instance
 	stopCh           chan struct{}
 	metricsCollector *MetricsCollector
+
+	mu      sync.Mutex // guards running
+	running bool       // true only after the listener bind succeeds
 }
 
 // ResourceStats represents statistics for a specific resource

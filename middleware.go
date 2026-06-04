@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/alibaba/sentinel-golang/api"
+	"github.com/alibaba/sentinel-golang/core/base"
 	kratosmiddleware "github.com/go-kratos/kratos/v2/middleware"
 	"github.com/go-kratos/kratos/v2/transport"
 )
@@ -54,17 +56,47 @@ func (s *PlugSentinel) CreateHTTPMiddleware(resourceExtractor func(any) string) 
 				return
 			}
 
-			// Execute the next handler
-			defer func() {
-				if entry != nil {
-					// Exit the entry (this would be done by the actual Sentinel entry)
-					// For now, we'll just log it
-				}
-			}()
+			// Always exit the Sentinel entry once the handler completes, otherwise
+			// concurrency/statistic counters never decrement and flow/breaker rules
+			// eventually block all traffic.
+			sentinelEntry, ok := entry.(*base.SentinelEntry)
+			if ok && sentinelEntry != nil {
+				defer sentinelEntry.Exit()
+			}
 
-			next.ServeHTTP(w, r)
+			// Capture the response status so 5xx responses are reported to Sentinel
+			// for circuit-breaker accounting.
+			sw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(sw, r)
+
+			if ok && sentinelEntry != nil && sw.status >= http.StatusInternalServerError {
+				api.TraceError(sentinelEntry, fmt.Errorf("handler returned status %d", sw.status))
+			}
 		})
 	}
+}
+
+// statusRecorder wraps http.ResponseWriter to capture the response status code
+// so the Sentinel HTTP middleware can report server errors to the circuit breaker.
+type statusRecorder struct {
+	http.ResponseWriter
+	status      int
+	wroteHeader bool
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	if !sr.wroteHeader {
+		sr.status = code
+		sr.wroteHeader = true
+	}
+	sr.ResponseWriter.WriteHeader(code)
+}
+
+func (sr *statusRecorder) Write(b []byte) (int, error) {
+	if !sr.wroteHeader {
+		sr.wroteHeader = true
+	}
+	return sr.ResponseWriter.Write(b)
 }
 
 // CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection.

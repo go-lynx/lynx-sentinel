@@ -2,6 +2,7 @@ package sentinel
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/alibaba/sentinel-golang/api"
@@ -13,6 +14,14 @@ import (
 	"github.com/go-lynx/lynx"
 	"github.com/go-lynx/lynx/log"
 	"github.com/go-lynx/lynx/plugins"
+)
+
+// sentinelInitOnce guards api.InitWithConfig, which mutates process-global state
+// and is not re-entrant. It ensures the global Sentinel core is initialized at
+// most once across plugin (re-)initialization attempts.
+var (
+	sentinelInitOnce sync.Once
+	sentinelInitErr  error
 )
 
 // InitializeResources implements custom initialization logic for Sentinel plugin
@@ -44,6 +53,19 @@ func (s *PlugSentinel) InitializeResources(rt plugins.Runtime) error {
 		return fmt.Errorf("failed to initialize sentinel core: %w", err)
 	}
 
+	// Track whether the rest of initialization completes; on any failure after
+	// core init, roll back the partially-initialized plugin state so a retry or
+	// re-init does not observe inconsistent state.
+	initOK := false
+	defer func() {
+		if !initOK {
+			s.metricsCollector = nil
+			s.dashboardServer = nil
+			s.sentinelInitialized = false
+			s.isInitialized = false
+		}
+	}()
+
 	// Initialize metrics collector if enabled
 	if s.conf.Metrics.Enabled {
 		interval, err := time.ParseDuration(s.conf.Metrics.Interval)
@@ -59,6 +81,7 @@ func (s *PlugSentinel) InitializeResources(rt plugins.Runtime) error {
 	}
 
 	s.isInitialized = true
+	initOK = true
 	log.Infof("Sentinel plugin initialized successfully")
 	return nil
 }
@@ -233,10 +256,14 @@ func (s *PlugSentinel) initializeSentinelCore() error {
 	sentinelConfig.Sentinel.Log.Dir = s.conf.LogDir
 	// Note: Sentinel config LogConfig doesn't have Level field, we'll set it via logging API
 
-	// Initialize Sentinel
-	err := api.InitWithConfig(sentinelConfig)
-	if err != nil {
-		return fmt.Errorf("failed to initialize sentinel: %w", err)
+	// Initialize Sentinel. api.InitWithConfig mutates process-global state and is
+	// not re-entrant, so guard it with sync.Once: subsequent re-inits reuse the
+	// existing global core instead of corrupting it.
+	sentinelInitOnce.Do(func() {
+		sentinelInitErr = api.InitWithConfig(sentinelConfig)
+	})
+	if sentinelInitErr != nil {
+		return fmt.Errorf("failed to initialize sentinel: %w", sentinelInitErr)
 	}
 
 	// Set logging level

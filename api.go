@@ -10,9 +10,19 @@ import (
 	"github.com/go-lynx/lynx/log"
 )
 
+// runtimeState returns a consistent snapshot of the fields shared between the
+// request path and shutdown/reconfiguration, read under the read lock so it does
+// not race with CleanupTasks/Configure which write them under the write lock.
+func (s *PlugSentinel) runtimeState() (bool, *MetricsCollector) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.sentinelInitialized, s.metricsCollector
+}
+
 // Entry performs flow control and circuit breaker check for a resource
 func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (any, error) {
-	if !s.sentinelInitialized {
+	initialized, collector := s.runtimeState()
+	if !initialized {
 		return nil, fmt.Errorf("sentinel plugin not initialized")
 	}
 
@@ -22,16 +32,16 @@ func (s *PlugSentinel) Entry(resource string, opts ...api.EntryOption) (any, err
 		log.Warnf("Request blocked by Sentinel for resource %s: %v", resource, err)
 
 		// Update metrics
-		if s.metricsCollector != nil {
-			s.metricsCollector.RecordBlocked(resource)
+		if collector != nil {
+			collector.RecordBlocked(resource)
 		}
 
 		return nil, err
 	}
 
 	// Update metrics
-	if s.metricsCollector != nil {
-		s.metricsCollector.RecordPassed(resource)
+	if collector != nil {
+		collector.RecordPassed(resource)
 	}
 
 	return entry, nil
@@ -61,19 +71,21 @@ func (s *PlugSentinel) Execute(resource string, fn func() error, opts ...api.Ent
 	}
 	defer sentinelEntry.Exit()
 
+	_, collector := s.runtimeState()
+
 	startTime := time.Now()
 	err = fn()
 	duration := time.Since(startTime)
 
 	// Record execution time
-	if s.metricsCollector != nil {
-		s.metricsCollector.RecordRT(resource, duration)
+	if collector != nil {
+		collector.RecordRT(resource, duration)
 	}
 
 	// Record error if occurred
 	if err != nil {
-		if s.metricsCollector != nil {
-			s.metricsCollector.RecordError(resource)
+		if collector != nil {
+			collector.RecordError(resource)
 		}
 
 		// Report error to Sentinel for circuit breaker
@@ -97,19 +109,21 @@ func (s *PlugSentinel) ExecuteWithContext(ctx context.Context, resource string, 
 	}
 	defer sentinelEntry.Exit()
 
+	_, collector := s.runtimeState()
+
 	startTime := time.Now()
 	err = fn(ctx)
 	duration := time.Since(startTime)
 
 	// Record execution time
-	if s.metricsCollector != nil {
-		s.metricsCollector.RecordRT(resource, duration)
+	if collector != nil {
+		collector.RecordRT(resource, duration)
 	}
 
 	// Record error if occurred
 	if err != nil {
-		if s.metricsCollector != nil {
-			s.metricsCollector.RecordError(resource)
+		if collector != nil {
+			collector.RecordError(resource)
 		}
 
 		// Report error to Sentinel for circuit breaker

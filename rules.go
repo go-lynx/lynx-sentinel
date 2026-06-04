@@ -36,26 +36,23 @@ func (s *PlugSentinel) loadFlowRules() error {
 		rules = append(rules, rule)
 	}
 
-	// Add default rule if no specific rules are configured
+	// Do not auto-create a phantom "default" rule: it never matches real
+	// resources and would mislead operators into believing protection exists.
 	if len(rules) == 0 {
-		defaultRule := &flow.Rule{
-			Resource:               "default",
-			TokenCalculateStrategy: flow.Direct,
-			ControlBehavior:        flow.Reject,
-			Threshold:              100.0, // Default QPS limit
-			StatIntervalInMs:       1000,
+		log.Warnf("No flow control rules configured; flow protection is disabled until rules are provided")
+		// Ensure any previously loaded rules are cleared so state matches config.
+		if _, err := flow.LoadRules(rules); err != nil {
+			return fmt.Errorf("failed to clear flow rules: %w", err)
 		}
-		rules = append(rules, defaultRule)
+		return nil
 	}
 
 	// Load rules into Sentinel
-	if len(rules) > 0 {
-		_, err := flow.LoadRules(rules)
-		if err != nil {
-			return fmt.Errorf("failed to load flow rules: %w", err)
-		}
-		log.Infof("Loaded %d flow control rules", len(rules))
+	_, err := flow.LoadRules(rules)
+	if err != nil {
+		return fmt.Errorf("failed to load flow rules: %w", err)
 	}
+	log.Infof("Loaded %d flow control rules", len(rules))
 
 	return nil
 }
@@ -79,27 +76,23 @@ func (s *PlugSentinel) loadCircuitBreakerRules() error {
 		rules = append(rules, rule)
 	}
 
-	// Add default circuit breaker rule if no specific rules are configured
+	// Do not auto-create a phantom "default" rule: it never matches real
+	// resources and would mislead operators into believing protection exists.
 	if len(rules) == 0 {
-		defaultRule := &circuitbreaker.Rule{
-			Resource:         "default",
-			Strategy:         circuitbreaker.ErrorRatio,
-			RetryTimeoutMs:   5000, // 5 seconds default
-			MinRequestAmount: 10,   // Default minimum request amount
-			StatIntervalMs:   1000, // 1 second default
-			Threshold:        0.5,  // 50% error ratio threshold
+		log.Warnf("No circuit breaker rules configured; circuit breaking is disabled until rules are provided")
+		// Ensure any previously loaded rules are cleared so state matches config.
+		if _, err := circuitbreaker.LoadRules(rules); err != nil {
+			return fmt.Errorf("failed to clear circuit breaker rules: %w", err)
 		}
-		rules = append(rules, defaultRule)
+		return nil
 	}
 
 	// Load rules into Sentinel
-	if len(rules) > 0 {
-		_, err := circuitbreaker.LoadRules(rules)
-		if err != nil {
-			return fmt.Errorf("failed to load circuit breaker rules: %w", err)
-		}
-		log.Infof("Loaded %d circuit breaker rules", len(rules))
+	_, err := circuitbreaker.LoadRules(rules)
+	if err != nil {
+		return fmt.Errorf("failed to load circuit breaker rules: %w", err)
 	}
+	log.Infof("Loaded %d circuit breaker rules", len(rules))
 
 	return nil
 }
