@@ -99,9 +99,7 @@ func (sr *statusRecorder) Write(b []byte) (int, error) {
 	return sr.ResponseWriter.Write(b)
 }
 
-// CreateGRPCInterceptor creates gRPC interceptor for Sentinel protection.
-// This method returns a middleware instance that provides both unary and stream interceptors.
+// CreateGRPCInterceptor returns a SentinelMiddleware that provides both unary and stream interceptors.
 func (s *PlugSentinel) CreateGRPCInterceptor() any {
-	// Return the SentinelMiddleware which provides GRPCUnaryInterceptor and GRPCStreamInterceptor
 	return s.CreateMiddleware()
 }
