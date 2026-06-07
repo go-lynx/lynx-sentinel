@@ -7,7 +7,7 @@ import (
 const (
 	pluginName        = "sentinel.flow_control"
 	PluginName        = pluginName
-	pluginVersion     = "v1.6.1"
+	pluginVersion     = "v1.6.3"
 	PluginVersion     = pluginVersion
 	pluginDescription = "Sentinel flow control and circuit breaker plugin for lynx framework"
 	PluginDescription = pluginDescription
