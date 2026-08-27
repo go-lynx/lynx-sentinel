@@ -191,6 +191,6 @@ type SentinelMiddleware struct {
 type RequestContext struct {
 	Resource  string
 	StartTime time.Time
-	Entry     any            // Sentinel entry (using any since SentinelEntry is not exported)
+	Entry     any // Sentinel entry (using any since SentinelEntry is not exported)
 	Metadata  map[string]any
 }

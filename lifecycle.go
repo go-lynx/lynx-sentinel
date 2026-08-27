@@ -1,17 +1,14 @@
 package sentinel
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/alibaba/sentinel-golang/api"
-	"github.com/alibaba/sentinel-golang/core/circuitbreaker"
 	"github.com/alibaba/sentinel-golang/core/config"
-	"github.com/alibaba/sentinel-golang/core/flow"
-	"github.com/alibaba/sentinel-golang/core/system"
 	"github.com/alibaba/sentinel-golang/logging"
-	"github.com/go-lynx/lynx"
 	"github.com/go-lynx/lynx/log"
 	"github.com/go-lynx/lynx/plugins"
 )
@@ -86,64 +83,10 @@ func (s *PlugSentinel) InitializeResources(rt plugins.Runtime) error {
 	return nil
 }
 
-// StartupTasks loads flow-control, circuit-breaker, and system-protection rules,
-// then starts the metrics loop and optional dashboard server.
+// StartupTasks is the legacy (non-context) startup hook. It delegates to the
+// context-aware implementation with a background context.
 func (s *PlugSentinel) StartupTasks() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if !s.isInitialized {
-		return fmt.Errorf("sentinel plugin not initialized")
-	}
-	s.resetStopChannel()
-
-	// Load flow control rules
-	if err := s.loadFlowRules(); err != nil {
-		return fmt.Errorf("failed to load flow rules: %w", err)
-	}
-
-	// Load circuit breaker rules
-	if err := s.loadCircuitBreakerRules(); err != nil {
-		return fmt.Errorf("failed to load circuit breaker rules: %w", err)
-	}
-
-	// Load system protection rules
-	if err := s.loadSystemRules(); err != nil {
-		return fmt.Errorf("failed to load system rules: %w", err)
-	}
-
-	// Start metrics collector
-	if s.metricsCollector != nil {
-		s.wg.Add(1)
-		go s.metricsCollector.Start(&s.wg, s.stopCh)
-	}
-
-	// Start dashboard server
-	if s.dashboardServer != nil {
-		s.wg.Add(1)
-		go s.dashboardServer.Start(&s.wg, s.stopCh)
-	}
-
-	if app := currentLynxApp(); app != nil {
-		if err := app.SetRateLimiter(s); err != nil {
-			log.Warnf("failed to attach Sentinel rate limiter capability to Lynx app: %v", err)
-		}
-	}
-
-	if s.rt != nil {
-		if err := lynx.RegisterControlPlaneCapabilityResources(s.rt, pluginName, s); err != nil {
-			log.Warnf("failed to register sentinel shared resource %s: %v", pluginName, err)
-		}
-		if err := s.rt.RegisterPrivateResource("metrics_collector", s.metricsCollector); err != nil && s.metricsCollector != nil {
-			log.Warnf("failed to register sentinel private metrics resource: %v", err)
-		}
-		if err := s.rt.RegisterPrivateResource("dashboard_server", s.dashboardServer); err != nil && s.dashboardServer != nil {
-			log.Warnf("failed to register sentinel private dashboard resource: %v", err)
-		}
-	}
-
-	log.Infof("Sentinel plugin started successfully")
-	return nil
+	return s.startupTasksContext(context.Background())
 }
 
 func (s *PlugSentinel) resetStopChannel() {
@@ -164,32 +107,10 @@ func isStopChannelClosed(stopCh <-chan struct{}) bool {
 	}
 }
 
-// CleanupTasks stops the metrics loop and dashboard server.
+// CleanupTasks is the legacy (non-context) cleanup hook. It delegates to the
+// context-aware implementation with a background context.
 func (s *PlugSentinel) CleanupTasks() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	log.Infof("Stopping Sentinel plugin...")
-
-	// Signal all background tasks to stop
-	if s.stopCh != nil {
-		select {
-		case <-s.stopCh:
-		default:
-			close(s.stopCh)
-		}
-	}
-
-	// Wait for all background tasks to complete
-	s.wg.Wait()
-
-	// Clear all rules
-	flow.ClearRules()
-	circuitbreaker.ClearRules()
-	system.ClearRules()
-
-	log.Infof("Sentinel plugin stopped successfully")
-	return nil
+	return s.cleanupTasksContext(context.Background())
 }
 
 // CheckHealth implements health check for Sentinel plugin
